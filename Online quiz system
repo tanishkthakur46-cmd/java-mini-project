@@ -1,0 +1,192 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.*;
+
+class AdvancedQuizV2 extends JFrame implements ActionListener {
+    String user;
+    String[] q = {"Where is chandigarh university exist?",
+            "Which city is famous for Golden temple",
+            "Which language runs in the browser?",
+            "What is 10 + 5?",
+            "Boiling point of water?",
+            "Who are the members of project?"};
+    String[][] opt = {{"Chandigarh","Mumbai","Delhi","Patiala"},
+            {"Amritsar ","Shri Muktsar","Kolkata","Bhopal"},
+            {"Python","C++","JavaScript","Java"},
+            {"10","15","20","25"},
+            {"90°C","100°C","120°C","80°C"},
+            {"Garima","mac","NAMI","Noel Silva"}
+    };
+    int[] ans = {0,0,2,1,1,0};
+    java.util.List<Integer> order = new ArrayList<>(),
+            userAns = new ArrayList<>();
+    int idx=0, score=0, time=60, selected=-1;
+    JLabel qLbl = new JLabel("",JLabel.CENTER),
+            tLbl = new JLabel("Time: 60s",JLabel.RIGHT);
+    JButton[] btn = new JButton[4];
+    JButton nextBtn = new JButton("Next");
+    javax.swing.Timer timer;
+
+    AdvancedQuizV2(String username){
+        user = (username==null||username.isEmpty()) ? "Guest" : username;
+        setTitle("Quiz - "+user); setSize(550,420); setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null); getContentPane().setBackground(new Color(245,248,255));
+        setLayout(new BorderLayout(10,10));
+
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.setBackground(new Color(220,230,255));
+        top.setBorder(BorderFactory.createEmptyBorder(10,20,10,20));
+        top.add(new JLabel("Player: "+user),BorderLayout.WEST);
+        top.add(tLbl,BorderLayout.EAST);
+        add(top,BorderLayout.NORTH);
+
+        qLbl.setFont(new Font("Segoe UI",Font.BOLD,18));
+        qLbl.setBorder(BorderFactory.createEmptyBorder(20,20,10,20));
+        add(qLbl,BorderLayout.CENTER);
+
+        // Options + Next
+        JPanel bottom = new JPanel(new BorderLayout());
+        JPanel opts = new JPanel(new GridLayout(4,1,10,10));
+        opts.setBackground(new Color(245,248,255));
+        opts.setBorder(BorderFactory.createEmptyBorder(0,50,10,50));
+        for(int i=0;i<4;i++){
+            btn[i]=new JButton();
+            btn[i].setFont(new Font("Segoe UI",Font.PLAIN,16));
+            btn[i].setBackground(new Color(240,243,255));
+            btn[i].setFocusPainted(false);
+            btn[i].addActionListener(this);
+            opts.add(btn[i]);
+        }
+        nextBtn.setFont(new Font("Segoe UI",Font.BOLD,15));
+        nextBtn.setBackground(new Color(0,120,215));
+        nextBtn.setForeground(Color.WHITE);
+        nextBtn.setFocusPainted(false);
+        nextBtn.addActionListener(e->nextQ());
+        JPanel nextPanel=new JPanel(); nextPanel.add(nextBtn);
+        bottom.add(opts,BorderLayout.CENTER);
+        bottom.add(nextPanel,BorderLayout.SOUTH);
+        add(bottom,BorderLayout.SOUTH);
+
+        for(int i=0;i<q.length;i++) order.add(i);
+        Collections.shuffle(order);
+        startTimer(); showQ(); setVisible(true);
+    }
+
+    void startTimer(){
+        timer=new javax.swing.Timer(1000,e->{
+            time--; tLbl.setText("Time: "+time+"s");
+            if(time<=0) end();
+        }); timer.start();
+    }
+
+    void showQ(){
+        if(idx>=q.length){ end(); return; }
+        selected=-1;
+        int qi=order.get(idx);
+        qLbl.setText("<html>Q"+(idx+1)+": "+q[qi]+"</html>");
+        for(int i=0;i<4;i++){ btn[i].setText(opt[qi][i]); btn[i].setEnabled(true); btn[i].setBackground(new Color(240,243,255)); }
+    }
+
+    public void actionPerformed(ActionEvent e){
+        for(int i=0;i<4;i++) if(e.getSource()==btn[i]) selected=i;
+        int qi=order.get(idx);
+        if(selected==ans[qi]){ score++; btn[selected].setBackground(new Color(120,200,120)); }
+        else{ btn[selected].setBackground(new Color(230,100,100)); btn[ans[qi]].setBackground(new Color(120,200,120)); }
+        for(JButton b:btn) b.setEnabled(false);
+    }
+
+    void nextQ(){
+        if(selected==-1) { JOptionPane.showMessageDialog(this,"Please select an answer!"); return; }
+        userAns.add(selected); idx++; showQ();
+    }
+
+    void end(){
+        timer.stop();
+        StringBuilder sb=new StringBuilder("Name: "+user+"\nScore: "+score+"/"+q.length+"\n\n");
+        for(int i=0;i<q.length;i++){int qi=order.get(i);
+            sb.append("Q").append(i+1).append(": ").append(q[qi]).append("\nYour: ")
+                    .append(i<userAns.size()?opt[qi][userAns.get(i)]:"No Answer")
+                    .append("\nCorrect: ").append(opt[qi][ans[qi]]).append("\n\n");
+        }
+        try(FileWriter fw=new FileWriter(user+"_result.txt")){
+            fw.write(sb.toString());
+        }catch(Exception ignored){}
+
+
+        try(FileWriter fw=new FileWriter("history.txt",true)){
+            String date=new Date().toString();
+            fw.write(user+" | Score: "+score+"/"+q.length+" | "+date+"\n");
+        }catch(Exception ignored){}
+
+        int count=0;
+        try(Scanner sc=new Scanner(new File("history.txt"))){
+            while(sc.hasNextLine()){count++; sc.nextLine();}
+        }catch(Exception ignored){}
+
+        sb.append("🎮 Total players so far: ").append(count);
+        JOptionPane.showMessageDialog(this,sb.toString(),"Result",JOptionPane.INFORMATION_MESSAGE);
+        System.exit(0);
+    }
+
+    public static void main(String[] args){ QuizLauncher.showStartScreen(); }
+}
+
+// ==================== New Launcher Class (ADDED) ====================
+class QuizLauncher {
+    public static void showStartScreen() {
+        JFrame startFrame = new JFrame("Welcome to the Quiz");
+        startFrame.setSize(400, 250);
+        startFrame.setLocationRelativeTo(null);
+        startFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setBackground(new Color(230, 240, 255));
+
+        JLabel title = new JLabel("BrainBlast Quiz", JLabel.CENTER);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        panel.add(title);
+
+        JTextField nameField = new JTextField();
+        nameField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        panel.add(nameField);
+
+        JButton startBtn = new JButton("Start Quiz");
+        JButton viewHistoryBtn = new JButton("View History");
+        startBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        viewHistoryBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        JPanel btnPanel = new JPanel();
+        btnPanel.add(startBtn);
+        btnPanel.add(viewHistoryBtn);
+        panel.add(btnPanel);
+
+        startFrame.add(panel);
+        startFrame.setVisible(true);
+
+        startBtn.addActionListener(e -> {
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) name = "Guest";
+            startFrame.dispose();
+            new AdvancedQuizV2(name);
+        });
+
+        viewHistoryBtn.addActionListener(e -> {
+            StringBuilder history = new StringBuilder();
+            try (Scanner sc = new Scanner(new File("history.txt"))) {
+                while (sc.hasNextLine()) history.append(sc.nextLine()).append("\n");
+            } catch (Exception ex) {
+                history.append("No quiz history found yet!");
+            }
+            JTextArea ta = new JTextArea(history.toString(), 15, 40);
+            ta.setEditable(false);
+            ta.setFont(new Font("Consolas", Font.PLAIN, 14));
+            JScrollPane sp = new JScrollPane(ta);
+            JOptionPane.showMessageDialog(null, sp, "Quiz History", JOptionPane.INFORMATION_MESSAGE);
+        });
+    }
+}
